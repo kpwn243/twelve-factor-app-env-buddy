@@ -49,22 +49,71 @@ to quickly create a Cobra application.`,
 			os.Exit(1)
 		}
 		tfaDir := home + "/.tfa"
+		tfaShell := tfaDir + "/tfa.sh"
 		dbFile := tfaDir + "/db.sqlite"
+
+		f, err := os.OpenFile(tfaShell, os.O_RDWR, 0644)
+		if err != nil {
+			fmt.Println("Failed to open tfa.sh file. Exiting")
+			os.Exit(1)
+		}
+		defer f.Close()
+		var osVars strings.Builder
+
 		db, err := sql.Open("sqlite3", dbFile)
 		if err != nil {
 			fmt.Println("Failed to open database connection. Exiting")
 			os.Exit(1)
 		}
-		rows, _ := db.Query("SELECT a.APP_NAME, a.APP_ENV, v.VAR_NAME, v.VAR_VALUE FROM applications a JOIN variables v on a.id = v.APP_ENV_RECORD")
+		rows, _ := db.Query("SELECT a.APP_NAME, a.APP_ENV, v.VAR_NAME, v.VAR_VALUE FROM applications a JOIN variables v on a.id = v.APP_ENV_RECORD WHERE a.ACTIVE = '1' AND v.ACTIVE = '1'")
 		var (
-			appName  string
-			appEnv   string
-			varName  string
-			varValue string
+			appHeaderWritten bool
+			currentAppName   string
+			currentAppEnv    string
+			appName          string
+			appEnv           string
+			varName          string
+			varValue         string
 		)
 		for rows.Next() {
-			rows.Scan(&appName, &appEnv, &varName, &varValue)
-			fmt.Printf("export %s_%s_%s=%s", strings.ToUpper(appName), strings.ToUpper(appEnv), strings.ToUpper(varName), strings.ToUpper(varValue))
+			err = rows.Scan(&appName, &appEnv, &varName, &varValue)
+			if err != nil {
+				fmt.Println("Failed to read data from the tfa database. Exiting")
+				os.Exit(1)
+			}
+			if currentAppName != appName && currentAppEnv != appEnv {
+				if appHeaderWritten {
+					_, err = fmt.Fprintf(&osVars, "\n")
+					if err != nil {
+						fmt.Println("Failed writing os variables header. Exiting")
+						os.Exit(1)
+					}
+				}
+				_, err = fmt.Fprintf(&osVars, "## %s environment variables for %s\n", appEnv, appName)
+				if err != nil {
+					fmt.Println("Failed writing os variables header. Exiting")
+					os.Exit(1)
+				}
+				appHeaderWritten = true
+			}
+			_, err := fmt.Fprintf(&osVars, "export %s_%s_%s=%s\n", strings.ToUpper(appName), strings.ToUpper(appEnv), strings.ToUpper(varName), varValue)
+			if err != nil {
+				fmt.Println("Failed writing os variables lines. Exiting")
+				os.Exit(1)
+			}
+		}
+
+		err = os.Truncate(tfaShell, 0)
+		if err != nil {
+			fmt.Println("Failed to truncate the tfa shell file. Exiting")
+			os.Exit(1)
+		}
+
+		fileContent := osVars.String()
+		_, err = f.WriteAt([]byte(fileContent), 0)
+		if err != nil {
+			fmt.Println("Failed writing os variables file. Exiting")
+			os.Exit(1)
 		}
 	},
 }

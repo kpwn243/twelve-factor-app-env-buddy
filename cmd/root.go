@@ -59,6 +59,7 @@ func init() {
 	}
 	tfaDir := home + "/.tfa"
 	dbFile := tfaDir + "/db.sqlite"
+	tfaShell := tfaDir + "/tfa.sh"
 
 	if _, err := os.Stat(tfaDir); os.IsNotExist(err) {
 		fmt.Println("~/.tfa directory not found. Creating")
@@ -67,6 +68,29 @@ func init() {
 			fmt.Println("Failed to create ~/.tfa directory. Exiting")
 			os.Exit(1)
 		}
+		f, err := os.Create(tfaShell)
+		if err != nil {
+			fmt.Println("Failed to create tfa.sh file. Exiting")
+			os.Exit(1)
+		}
+		f.Close()
+
+		rcFile, err := os.OpenFile(home + "/.zshrc", os.O_APPEND|os.O_WRONLY, 0644)
+		if err != nil {
+			fmt.Println("Failed to open .zshrc file. Exiting")
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		defer f.Close()
+
+		_, err = rcFile.WriteString("\n## Twelve Factor App Shell File\nsource ~/.tfa/tfa.sh")
+		if err != nil {
+			fmt.Println("Failed to append to .zshrc file. Exiting")
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		rcFile.Sync()
+		fmt.Println("Appended to .zshrc")
 	}
 
 	db, err := sql.Open("sqlite3", dbFile)
@@ -74,7 +98,7 @@ func init() {
 		fmt.Println("Failed to open database connection. Exiting")
 		os.Exit(1)
 	}
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS applications (id INTEGER PRIMARY KEY AUTOINCREMENT, APP_NAME TEXT, APP_ENV TEXT, ACTIVE BOOL DEFAULT 1);" +
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS applications (id INTEGER PRIMARY KEY AUTOINCREMENT, APP_NAME TEXT, APP_ENV TEXT, ACTIVE BOOL DEFAULT 1, WRITE_WITHOUT_PREFIX BOOL DEFAULT 0);" +
 		"CREATE TABLE IF NOT EXISTS variables (id INTEGER PRIMARY KEY AUTOINCREMENT, APP_ENV_RECORD INTEGER NOT NULL, VAR_NAME TEXT, VAR_VALUE TEXT, ACTIVE BOOL DEFAULT 1);")
 	if err != nil {
 		fmt.Println("Failed to create app database tables. Exiting")
