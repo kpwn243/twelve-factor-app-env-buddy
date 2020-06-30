@@ -19,6 +19,7 @@ Directory Structure
 * tfa enable [app name] [env]
 
 * tfa set [app name] [env] [var_name] [value]
+* tfa remove [app_name] [env] [var_name]
 
 * tfa commit
 
