@@ -24,6 +24,7 @@ package cmd
 import (
 	"database/sql"
 	"fmt"
+	"github.com/kpwn243/twelve-factor-app-env-buddy/internal"
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"os"
@@ -98,10 +99,9 @@ func init() {
 		fmt.Println("Failed to open database connection. Exiting")
 		os.Exit(1)
 	}
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS applications (id INTEGER PRIMARY KEY AUTOINCREMENT, APP_NAME TEXT, APP_ENV TEXT, ACTIVE BOOL DEFAULT 1, WRITE_WITHOUT_PREFIX BOOL DEFAULT 0);" +
-		"CREATE TABLE IF NOT EXISTS variables (id INTEGER PRIMARY KEY AUTOINCREMENT, APP_ENV_RECORD INTEGER NOT NULL, VAR_NAME TEXT, VAR_VALUE TEXT, ACTIVE BOOL DEFAULT 1);")
+	_, err = db.Exec(internal.DbInit)
 	if err != nil {
-		fmt.Println("Failed to create app database tables. Exiting")
+		fmt.Println("Failed to create app database tables. Exiting", err)
 		os.Exit(1)
 	}
 

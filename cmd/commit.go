@@ -24,6 +24,7 @@ package cmd
 import (
 	"database/sql"
 	"fmt"
+	"github.com/kpwn243/twelve-factor-app-env-buddy/internal"
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"os"
@@ -36,12 +37,6 @@ import (
 var commitCmd = &cobra.Command{
 	Use:   "commit",
 	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		home, err := homedir.Dir()
 		if err != nil {
@@ -65,7 +60,7 @@ to quickly create a Cobra application.`,
 			fmt.Println("Failed to open database connection. Exiting")
 			os.Exit(1)
 		}
-		rows, _ := db.Query("SELECT a.APP_NAME, a.APP_ENV, v.VAR_NAME, v.VAR_VALUE FROM applications a JOIN variables v on a.id = v.APP_ENV_RECORD WHERE a.ACTIVE = '1' AND v.ACTIVE = '1'")
+		rows, _ := db.Query(internal.SelectAppValues)
 		var (
 			appHeaderWritten bool
 			currentAppName   string
@@ -120,14 +115,4 @@ to quickly create a Cobra application.`,
 
 func init() {
 	rootCmd.AddCommand(commitCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// commitCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// commitCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
