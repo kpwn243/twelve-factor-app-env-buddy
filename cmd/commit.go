@@ -36,7 +36,7 @@ import (
 // commitCmd represents the commit command
 var commitCmd = &cobra.Command{
 	Use:   "commit",
-	Short: "A brief description of your command",
+	Short: "Write tfa database records to the tfa shell file.",
 	Run: func(cmd *cobra.Command, args []string) {
 		home, err := homedir.Dir()
 		if err != nil {

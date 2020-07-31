@@ -34,8 +34,7 @@ import (
 // setCmd represents the set command
 var setCmd = &cobra.Command{
 	Use:   "set [app name] [app env] [variable name] [variable value]",
-	Short: "A brief description of your command",
-	Long: ``,
+	Short: "Set application variable name and value to existing application/environment combo",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 4 {
 			return errors.New("app name, environment, variable name, and variable value are required")
@@ -77,12 +76,12 @@ var setCmd = &cobra.Command{
 			fmt.Println("Unable to create variable name/value combo as the app/env combo does not exist. Please run tfa create. Exiting")
 			os.Exit(1)
 		}
-		_, err = db.Exec("INSERT INTO variables (APP_ENV_RECORD, VAR_NAME, VAR_VALUE) VALUES (?, ?, ?)", appEnvRecordId, varName, varValue)
+		_, err = db.Exec("REPLACE INTO variables (APP_ENV_RECORD, VAR_NAME, VAR_VALUE) VALUES (?, ?, ?)", appEnvRecordId, varName, varValue)
 		if err != nil {
 			fmt.Println("Failed to insert variable name/value into the database. Exiting.")
 			os.Exit(1)
 		}
-		fmt.Println("Added variable to the database. Don't forget to commit your changes via tfa commit")
+		fmt.Println(fmt.Sprintf("Variable %s set to the database for %s(%s). Don't forget to commit your changes via tfa commit!", varName, appName, appEnv))
 	},
 }
 
