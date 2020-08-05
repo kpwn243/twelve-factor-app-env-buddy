@@ -25,7 +25,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/mitchellh/go-homedir"
+	"github.com/kpwn243/twelve-factor-app-env-buddy/internal"
 	"github.com/spf13/cobra"
 	"os"
 	"strings"
@@ -42,19 +42,7 @@ var setCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		home, err := homedir.Dir()
-		if err != nil {
-			fmt.Println("failed to get home directory")
-			os.Exit(1)
-		}
-		tfaDir := home + "/.tfa"
-		dbFile := tfaDir + "/db.sqlite"
-
-		db, err := sql.Open("sqlite3", dbFile)
-		if err != nil {
-			fmt.Println("Failed to open database connection. Exiting")
-			os.Exit(1)
-		}
+		db := internal.GetDbConnection()
 
 		appName := strings.ToUpper(args[0])
 		appEnv := strings.ToUpper(args[1])
@@ -63,7 +51,7 @@ var setCmd = &cobra.Command{
 
 		var appEnvRecordId int
 		appEnvExistsStmt := db.QueryRow("SELECT e.id FROM applications a JOIN environments e ON a.id = e.APP_KEY WHERE a.APP_NAME = ? AND e.APP_ENV = ?", appName, appEnv)
-		err = appEnvExistsStmt.Scan(&appEnvRecordId)
+		err := appEnvExistsStmt.Scan(&appEnvRecordId)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				appEnvRecordId = 0
@@ -87,14 +75,4 @@ var setCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(setCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// setCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// setCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

@@ -22,10 +22,9 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/mitchellh/go-homedir"
+	"github.com/kpwn243/twelve-factor-app-env-buddy/internal"
 	"os"
 	"strings"
 
@@ -43,24 +42,13 @@ var createCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		home, err := homedir.Dir()
-		if err != nil {
-			fmt.Println("failed to get home directory")
-			os.Exit(1)
-		}
-		tfaDir := home + "/.tfa"
-		dbFile := tfaDir + "/db.sqlite"
+		db := internal.GetDbConnection()
 
-		db, err := sql.Open("sqlite3", dbFile)
-		if err != nil {
-			fmt.Println("Failed to open database connection. Exiting")
-			os.Exit(1)
-		}
 		var appCount int
 		appName := strings.ToUpper(args[0])
 		appEnv := strings.ToUpper(args[1])
 		appExistsStatement:= db.QueryRow("SELECT COUNT(1) FROM applications WHERE APP_NAME = ?", appName)
-		err = appExistsStatement.Scan(&appCount)
+		err := appExistsStatement.Scan(&appCount)
 		if err != nil {
 			fmt.Println("Failed to check for app existence when creating env var. Exiting")
 			os.Exit(1)

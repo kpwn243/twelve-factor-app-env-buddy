@@ -22,10 +22,8 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/kpwn243/twelve-factor-app-env-buddy/internal"
-	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"os"
 	"strings"
@@ -33,33 +31,18 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// commitCmd represents the commit command
 var commitCmd = &cobra.Command{
 	Use:   "commit",
 	Short: "Write tfa database records to the tfa shell file.",
 	Run: func(cmd *cobra.Command, args []string) {
-		home, err := homedir.Dir()
+		config := internal.InitConfiguration()
+		db, err := internal.InitDbConnection()
 		if err != nil {
-			fmt.Println("failed to get home directory")
+			fmt.Println("Failed to create database connection. Exiting")
 			os.Exit(1)
 		}
-		tfaDir := home + "/.tfa"
-		tfaShell := tfaDir + "/tfa.sh"
-		dbFile := tfaDir + "/db.sqlite"
-
-		f, err := os.OpenFile(tfaShell, os.O_RDWR, 0644)
-		if err != nil {
-			fmt.Println("Failed to open tfa.sh file. Exiting")
-			os.Exit(1)
-		}
-		defer f.Close()
 		var osVars strings.Builder
 
-		db, err := sql.Open("sqlite3", dbFile)
-		if err != nil {
-			fmt.Println("Failed to open database connection. Exiting")
-			os.Exit(1)
-		}
 		rows, _ := db.Query(internal.SelectAppValues)
 		var (
 			appHeaderWritten bool
@@ -98,16 +81,17 @@ var commitCmd = &cobra.Command{
 			}
 		}
 
-		err = os.Truncate(tfaShell, 0)
+		err = os.Truncate(config.TfaShellFileLocation, 0)
 		if err != nil {
 			fmt.Println("Failed to truncate the tfa shell file. Exiting")
 			os.Exit(1)
 		}
 
 		fileContent := osVars.String()
-		_, err = f.WriteAt([]byte(fileContent), 0)
+		_, err = config.TfaShellFile.WriteAt([]byte(fileContent), 0)
 		if err != nil {
 			fmt.Println("Failed writing os variables file. Exiting")
+			fmt.Println(err)
 			os.Exit(1)
 		}
 	},
