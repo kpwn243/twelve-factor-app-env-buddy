@@ -22,7 +22,6 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/kpwn243/twelve-factor-app-env-buddy/internal"
 	"github.com/spf13/cobra"
@@ -35,7 +34,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "tfa",
 	Short: "",
-	Long: ``,
+	Long:  ``,
 	//	Run: func(cmd *cobra.Command, args []string) { },
 }
 
@@ -49,21 +48,12 @@ func Execute() {
 }
 
 func init() {
-	config := internal.InitConfiguration()
+	_ = internal.InitConfiguration()
 	db, err := internal.InitDbConnection()
 	if err != nil {
 		fmt.Println("Failed to create database connection. Exiting")
 		os.Exit(1)
 	}
 
-	db, err = sql.Open("sqlite3", config.DbFileLocation)
-	if err != nil {
-		fmt.Println("Failed to open database connection. Exiting")
-		os.Exit(1)
-	}
-	_, err = db.Exec(internal.DbInit)
-	if err != nil {
-		fmt.Println("Failed to create app database tables. Exiting", err)
-		os.Exit(1)
-	}
+	db.AutoMigrate(&internal.Application{}, &internal.Environment{}, &internal.Variable{})
 }

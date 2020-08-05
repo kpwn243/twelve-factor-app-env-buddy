@@ -25,10 +25,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/kpwn243/twelve-factor-app-env-buddy/internal"
+	"github.com/spf13/cobra"
 	"os"
 	"strings"
-
-	"github.com/spf13/cobra"
 )
 
 // createCmd represents the create command
@@ -44,59 +43,42 @@ var createCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		db := internal.GetDbConnection()
 
-		var appCount int
 		appName := strings.ToUpper(args[0])
 		appEnv := strings.ToUpper(args[1])
-		appExistsStatement:= db.QueryRow("SELECT COUNT(1) FROM applications WHERE APP_NAME = ?", appName)
-		err := appExistsStatement.Scan(&appCount)
-		if err != nil {
-			fmt.Println("Failed to check for app existence when creating env var. Exiting")
-			os.Exit(1)
+
+		var app internal.Application
+
+		if db.Where("name=?", appName).First(&app).RecordNotFound() {
+			db.Save(&internal.Application{
+				Name:         appName,
+				Active:       true,
+				Environments: []internal.Environment{{
+					EnvName: appEnv,
+					WriteWithoutPrefix: false,
+					Active: true,
+				}},
+			})
+			fmt.Println(fmt.Sprintf("Created %s environment for application %s.", appEnv, appName))
+			os.Exit(0)
 		}
-		if appCount > 0 {
-			var appKey int
-			appKeyStatement := db.QueryRow("SELECT id FROM applications WHERE APP_NAME = ?", appName)
-			err = appKeyStatement.Scan(&appKey)
-			if err != nil {
-				fmt.Println("Failed to get key of existing application. Exiting")
-				os.Exit(1)
-			}
-			var envCount int
-			envExistsStmt := db.QueryRow("SELECT COUNT(1) FROM environments WHERE APP_KEY = ? and APP_ENV = ?", appKey, appEnv)
-			err = envExistsStmt.Scan(&envCount)
-			if err != nil {
-				fmt.Println("Failed to check for env existence when adding env to app")
-				os.Exit(1)
-			}
-			if envCount == 0 {
-				_, err := db.Exec("INSERT INTO environments (APP_KEY, APP_ENV) VALUES (?, ?)", appKey, appEnv)
-				if err != nil {
-					fmt.Println("Failed to create insert query for new environment with existing app. Exiting")
-					os.Exit(1)
-				}
-			} else {
-				fmt.Println(fmt.Sprintf("%s %s already exists in the database", appName, appEnv))
-			}
-		} else {
-			_, err := db.Exec("INSERT INTO applications (APP_NAME, ACTIVE) VALUES (?, 1); INSERT INTO environments (APP_KEY, APP_ENV) VALUES (last_insert_rowid(), ?);", appName, appEnv)
-			if err != nil {
-				fmt.Println("Failed to insert new application/env combo into the db. Exiting")
-				os.Exit(1)
-			}
+		
+		var env internal.Environment
+		
+		if db.Where("env_name=?", appEnv).First(&env).RecordNotFound() {
+			db.Create(&internal.Environment{
+				ApplicationId:      app.ID,
+				EnvName:            appEnv,
+				WriteWithoutPrefix: false,
+				Active:             true,
+			})
+			fmt.Println(fmt.Sprintf("Created %s environment for application %s.", appEnv, appName))
+			os.Exit(0)
 		}
+
+		fmt.Println(fmt.Sprintf("%s %s already exists in the database", appName, appEnv))
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(createCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// createCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// createCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

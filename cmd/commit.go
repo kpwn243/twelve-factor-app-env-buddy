@@ -27,8 +27,6 @@ import (
 	"github.com/spf13/cobra"
 	"os"
 	"strings"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 var commitCmd = &cobra.Command{
@@ -36,52 +34,32 @@ var commitCmd = &cobra.Command{
 	Short: "Write tfa database records to the tfa shell file.",
 	Run: func(cmd *cobra.Command, args []string) {
 		config := internal.InitConfiguration()
-		db, err := internal.InitDbConnection()
-		if err != nil {
-			fmt.Println("Failed to create database connection. Exiting")
-			os.Exit(1)
-		}
-		var osVars strings.Builder
+		db := internal.GetDbConnection()
 
-		rows, _ := db.Query(internal.SelectAppValues)
-		var (
-			appHeaderWritten bool
-			currentAppName   string
-			currentAppEnv    string
-			appName          string
-			appEnv           string
-			varName          string
-			varValue         string
-		)
-		for rows.Next() {
-			err = rows.Scan(&appName, &appEnv, &varName, &varValue)
-			if err != nil {
-				fmt.Println("Failed to read data from the tfa database. Exiting")
-				os.Exit(1)
-			}
-			if currentAppName != appName && currentAppEnv != appEnv {
-				if appHeaderWritten {
-					_, err = fmt.Fprintf(&osVars, "\n")
-					if err != nil {
-						fmt.Println("Failed writing os variables header. Exiting")
-						os.Exit(1)
-					}
-				}
-				_, err = fmt.Fprintf(&osVars, "## %s environment variables for %s\n", appEnv, appName)
+		var osVars strings.Builder
+		var applications []internal.Application
+
+		db.Set("gorm:auto_preload", true).Find(&applications)
+
+		for _, app := range applications {
+			for _, env := range app.Environments {
+				_, err := fmt.Fprintf(&osVars, "## %s environment variables for %s\n", app.Name, env.EnvName)
 				if err != nil {
 					fmt.Println("Failed writing os variables header. Exiting")
 					os.Exit(1)
 				}
-				appHeaderWritten = true
-			}
-			_, err := fmt.Fprintf(&osVars, "export %s_%s_%s=%s\n", strings.ToUpper(appName), strings.ToUpper(appEnv), strings.ToUpper(varName), varValue)
-			if err != nil {
-				fmt.Println("Failed writing os variables lines. Exiting")
-				os.Exit(1)
+
+				for _, variable := range env.Variables {
+					_, err := fmt.Fprintf(&osVars, "export %s_%s_%s=%s\n", strings.ToUpper(app.Name), strings.ToUpper(env.EnvName), strings.ToUpper(variable.VarName), variable.VarValue)
+					if err != nil {
+						fmt.Println("Failed writing os variables lines. Exiting")
+						os.Exit(1)
+					}
+				}
 			}
 		}
 
-		err = os.Truncate(config.TfaShellFileLocation, 0)
+		err := os.Truncate(config.TfaShellFileLocation, 0)
 		if err != nil {
 			fmt.Println("Failed to truncate the tfa shell file. Exiting")
 			os.Exit(1)

@@ -1,16 +1,16 @@
 package internal
 
 import (
-	"database/sql"
+	"github.com/jinzhu/gorm"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
-var database *sql.DB
+var database *gorm.DB
 
-func InitDbConnection() (*sql.DB, error) {
+func InitDbConnection() (*gorm.DB, error) {
 	config := GetConfiguration()
-	db, err := sql.Open("sqlite3", config.DbFileLocation)
+	db, err := gorm.Open("sqlite3", config.DbFileLocation)
 	if err != nil {
 		return nil, err
 	}
@@ -19,6 +19,6 @@ func InitDbConnection() (*sql.DB, error) {
 	return db, nil
 }
 
-func GetDbConnection() *sql.DB {
+func GetDbConnection() *gorm.DB {
 	return database
 }

@@ -22,7 +22,6 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/kpwn243/twelve-factor-app-env-buddy/internal"
@@ -49,26 +48,25 @@ var setCmd = &cobra.Command{
 		varName := strings.ToUpper(args[2])
 		varValue := args[3]
 
-		var appEnvRecordId int
-		appEnvExistsStmt := db.QueryRow("SELECT e.id FROM applications a JOIN environments e ON a.id = e.APP_KEY WHERE a.APP_NAME = ? AND e.APP_ENV = ?", appName, appEnv)
-		err := appEnvExistsStmt.Scan(&appEnvRecordId)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				appEnvRecordId = 0
-			} else {
-				fmt.Println("Failed to check if the application/env combo was present when inserting variable value. Exiting")
-				os.Exit(1)
-			}
-		}
-		if appEnvRecordId == 0 {
+		var env internal.Environment
+		envQuery := db.Joins("JOIN applications ON environments.application_id=applications.id").
+			Where("applications.name=? AND environments.env_name=?", appName, appEnv).
+			Find(&env)
+
+		if envQuery.RecordNotFound() {
 			fmt.Println("Unable to create variable name/value combo as the app/env combo does not exist. Please run tfa create. Exiting")
 			os.Exit(1)
 		}
-		_, err = db.Exec("REPLACE INTO variables (APP_ENV_RECORD, VAR_NAME, VAR_VALUE) VALUES (?, ?, ?)", appEnvRecordId, varName, varValue)
-		if err != nil {
-			fmt.Println("Failed to insert variable name/value into the database. Exiting.")
-			os.Exit(1)
-		}
+
+		var variable internal.Variable
+
+		db.Where("environment_id=? AND var_name=?", env.ID, varName).Find(&variable)
+		variable.EnvironmentId = env.ID
+		variable.VarName = varName
+		variable.VarValue = varValue
+		variable.Active = true
+
+		db.Save(&variable)
 		fmt.Println(fmt.Sprintf("Variable %s set to the database for %s(%s). Don't forget to commit your changes via tfa commit!", varName, appName, appEnv))
 	},
 }
