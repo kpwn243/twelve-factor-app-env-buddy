@@ -11,7 +11,7 @@ Directory Structure
 |   tfa.sh
 ```
 
-###Commands
+### Commands
 * tfa create [app name] [env]
 * tfa delete [app name] [env]
 

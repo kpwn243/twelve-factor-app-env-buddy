@@ -3,6 +3,8 @@ package internal
 import (
 	"fmt"
 	"github.com/mitchellh/go-homedir"
+	"github.com/riywo/loginshell"
+	"log"
 	"os"
 )
 
@@ -64,7 +66,20 @@ func initFiles(tfaDirectory string, tfaShellFileLocation string, homeDir string)
 		}
 		f.Close()
 
-		rcFile, err := os.OpenFile(homeDir + "/.zshrc", os.O_APPEND|os.O_WRONLY, 0644)
+		shell, err := loginshell.Shell()
+		if err != nil {
+			log.Fatal("Failed to determine current shell. Exiting")
+		}
+
+		var shellFileRcFile string
+		switch shell {
+		case "/bin/zsh":
+			shellFileRcFile = homeDir + "/.zshrc"
+		case "/bin/bash":
+			shellFileRcFile = homeDir + "/.bash_profile"
+		}
+
+		rcFile, err := os.OpenFile(shellFileRcFile, os.O_APPEND|os.O_WRONLY, 0644)
 		if err != nil {
 			fmt.Println("Failed to open .zshrc file. Exiting")
 			fmt.Println(err)
@@ -72,13 +87,13 @@ func initFiles(tfaDirectory string, tfaShellFileLocation string, homeDir string)
 		}
 		defer f.Close()
 
-		_, err = rcFile.WriteString("\n## Twelve Factor App Shell File\nsource ~/.tfa/tfa.sh")
+		_, err = rcFile.WriteString("\n## Twelve Factor App Shell File\nsource ~/.tfa/tfa.sh\n")
 		if err != nil {
-			fmt.Println("Failed to append to .zshrc file. Exiting")
+			fmt.Printf("Failed to append to %s file. Exiting\n", shellFileRcFile)
 			fmt.Println(err)
 			os.Exit(1)
 		}
 		rcFile.Sync()
-		fmt.Println("Appended to .zshrc")
+		fmt.Printf("Appended to %s\n", shellFileRcFile)
 	}
 }
