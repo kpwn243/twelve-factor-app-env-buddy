@@ -6,6 +6,7 @@ import (
 	"github.com/riywo/loginshell"
 	"log"
 	"os"
+	"strings"
 )
 
 type Configuration struct {
@@ -72,14 +73,26 @@ func initFiles(tfaDirectory string, tfaShellFileLocation string, homeDir string)
 		}
 
 		var shellFileRcFile string
-		switch shell {
-		case "/bin/zsh":
+		if strings.Contains(shell, "zsh") {
 			shellFileRcFile = homeDir + "/.zshrc"
-		case "/bin/bash":
+		} else if strings.Contains(shell, "bash") {
 			shellFileRcFile = homeDir + "/.bash_profile"
+		} else {
+			log.Fatalf("Unsupported shell file being used: %v. Exiting", shell)
 		}
 
-		rcFile, err := os.OpenFile(shellFileRcFile, os.O_APPEND|os.O_WRONLY, 0644)
+		if _, err := os.Stat(shellFileRcFile); err != nil {
+			if os.IsNotExist(err) {
+				_, err := os.Create(shellFileRcFile)
+				if err != nil {
+					fmt.Println(err)
+					log.Fatal("Failed to create shell rc file. Exiting")
+				}
+			}
+			log.Fatal("Failed to stat shell rc file. Exiting")
+		}
+
+		rcFile, err := os.OpenFile(shellFileRcFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			fmt.Println("Failed to open .zshrc file. Exiting")
 			fmt.Println(err)
